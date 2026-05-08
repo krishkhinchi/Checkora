@@ -739,3 +739,54 @@ class OpeningBookTest(SimpleTestCase):
         self.assertEqual(move['from_row'], 6)
         self.assertEqual(move['to_row'], 4)
         ChessGame._opening_book = None
+
+
+from io import BytesIO
+from PIL import Image
+from django.core.files.uploadedfile import SimpleUploadedFile
+from django.contrib.auth.models import User
+from .models import GameResult, UserProfile
+
+class AvatarUploadTest(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username='testuser', password='password123')
+        self.client.login(username='testuser', password='password123')
+
+    def generate_test_image(self):
+        img = Image.new('RGB', (100, 100), color='red')
+        img_io = BytesIO()
+        img.save(img_io, format='JPEG')
+        img_io.seek(0)
+        return SimpleUploadedFile("avatar.jpg", img_io.read(), content_type="image/jpeg")
+
+    def test_profile_creation_on_user_creation(self):
+        self.assertTrue(UserProfile.objects.filter(user=self.user).exists())
+
+    def test_avatar_upload(self):
+        avatar = self.generate_test_image()
+        response = self.client.post('/profile/', {'avatar': avatar})
+        self.assertEqual(response.status_code, 302)  # redirect on success
+        
+        self.user.profile.refresh_from_db()
+        self.assertTrue(self.user.profile.avatar.name.startswith('avatars/'))
+
+class GameResultAssociationTest(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username='testuser', password='password123')
+        self.client.login(username='testuser', password='password123')
+
+    def test_record_game_result_associates_user(self):
+        # Trigger a checkmate to record the result
+        session = self.client.session
+        game_data = ChessGame().to_dict()
+        game_data['current_turn'] = 'black'
+        session['game'] = game_data
+        session.save()
+        self.client.cookies[settings.SESSION_COOKIE_NAME] = session.session_key
+
+        with mock.patch.object(ChessGame, 'make_move', return_value=(True, 'checkmate', None, 'checkmate')):
+            self.client.post('/api/move/', data=json.dumps({
+                'from_row': 1, 'from_col': 0, 'to_row': 2, 'to_col': 0
+            }), content_type='application/json')
+            
+        self.assertTrue(GameResult.objects.filter(user=self.user, winner='white', end_reason='checkmate').exists())

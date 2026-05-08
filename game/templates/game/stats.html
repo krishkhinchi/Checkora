@@ -19,10 +19,17 @@
         a { color: #f0c040; text-decoration: none; }
         a:hover { text-decoration: underline; }
         .back { text-align: center; margin-top: 30px; }
+        .avatar-lg { width: 80px; height: 80px; border-radius: 50%; border: 2px solid #f0c040; object-fit: cover; display: block; margin: 0 auto 20px; }
     </style>
 </head>
 <body>
-    <h1>CHECK<span>ORA</span> &mdash; Game Statistics</h1>
+    {% if user.is_authenticated %}
+        <img src="{{ user.profile.get_avatar_url }}" class="avatar-lg" alt="{{ user.username }}'s Avatar">
+        <h1 style="margin-bottom: 5px;">{{ user.username }}'s Stats</h1>
+    {% else %}
+        <h1 style="margin-bottom: 5px;">CHECK<span style="color: #f0c040;">ORA</span> &mdash; Global Stats</h1>
+    {% endif %}
+    <p style="text-align: center; color: #8a8aaa; margin-top: 0; margin-bottom: 30px;">{{ title }}</p>
 
     <h2>AI Game Summary</h2>
     <div class="summary">

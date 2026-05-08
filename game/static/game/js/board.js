@@ -298,6 +298,27 @@
                 if (whiteCapturedName) whiteCapturedName.textContent = wName;
                 if (blackCapturedName) blackCapturedName.textContent = bName;
 
+                const whiteAvatar = document.getElementById('whiteAvatar');
+                const blackAvatar = document.getElementById('blackAvatar');
+
+                if (whiteAvatar) {
+                    if (data.white_avatar) {
+                        whiteAvatar.src = data.white_avatar;
+                        whiteAvatar.style.display = 'inline-block';
+                    } else {
+                        whiteAvatar.style.display = 'none';
+                    }
+                }
+
+                if (blackAvatar) {
+                    if (data.black_avatar) {
+                        blackAvatar.src = data.black_avatar;
+                        blackAvatar.style.display = 'inline-block';
+                    } else {
+                        blackAvatar.style.display = 'none';
+                    }
+                }
+
                 if (gameMode === 'ai') {
                     if (whiteYouTag) whiteYouTag.style.display = (playerColor === 'white') ? 'inline' : 'none';
                     if (blackYouTag) blackYouTag.style.display = (playerColor === 'black') ? 'inline' : 'none';

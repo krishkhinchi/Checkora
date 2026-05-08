@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Checkora - Profile</title>
+    <style>
+        body { background: #0f0f1a; color: #d0d0d0; font-family: Arial, sans-serif; padding: 40px; }
+        h1 { color: #f0c040; text-align: center; letter-spacing: 2px; }
+        .container { max-width: 600px; margin: 0 auto; background: #16162a; border: 1px solid #252545; border-radius: 12px; padding: 40px; }
+        .avatar-preview { width: 150px; height: 150px; border-radius: 50%; object-fit: cover; border: 3px solid #f0c040; margin: 0 auto 20px; display: block; }
+        .form-group { margin-bottom: 20px; }
+        label { display: block; margin-bottom: 8px; color: #8a8aaa; }
+        input[type="file"] { width: 100%; padding: 10px; background: #0f0f1a; border: 1px solid #252545; color: #d0d0d0; border-radius: 4px; }
+        .btn { display: inline-block; width: 100%; padding: 12px; background: #f0c040; color: #0f0f1a; font-weight: bold; border: none; border-radius: 4px; cursor: pointer; text-align: center; text-decoration: none; }
+        .btn:hover { background: #ffd050; }
+        a { color: #f0c040; text-decoration: none; display: block; text-align: center; margin-top: 20px; }
+        a:hover { text-decoration: underline; }
+        .messages { background: #2a3a2a; color: #a0f0a0; padding: 10px; border-radius: 4px; margin-bottom: 20px; text-align: center; }
+    </style>
+</head>
+<body>
+    <h1>CHECK<span style="color: #f0c040;">ORA</span> &mdash; Profile</h1>
+    <div class="container">
+        {% if messages %}
+        <div class="messages">
+            {% for message in messages %}
+                {{ message }}
+            {% endfor %}
+        </div>
+        {% endif %}
+        
+        <img src="{{ user.profile.get_avatar_url }}" alt="Avatar" class="avatar-preview">
+        <h2 style="text-align: center; color: #fff;">{{ user.username }}</h2>
+        
+        <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            <div class="form-group">
+                <label for="id_avatar">Update Avatar (Max 5MB)</label>
+                {{ form.avatar }}
+                {% if form.avatar.errors %}
+                <div style="color: #f04040; margin-top: 5px; font-size: 14px;">{{ form.avatar.errors }}</div>
+                {% endif %}
+            </div>
+            <button type="submit" class="btn">Save Changes</button>
+        </form>
+        <a href="/">Back to Game</a>
+    </div>
+</body>
+</html>

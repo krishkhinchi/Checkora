@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Checkora - Leaderboard</title>
+    <style>
+        body { background: #0f0f1a; color: #d0d0d0; font-family: Arial, sans-serif; padding: 40px; }
+        h1 { color: #f0c040; text-align: center; letter-spacing: 2px; }
+        table { width: 100%; max-width: 800px; margin: 40px auto; border-collapse: collapse; }
+        th { background: #1a1a2e; color: #f0c040; padding: 12px; text-align: left; }
+        td { padding: 10px 12px; border-bottom: 1px solid #252545; vertical-align: middle; }
+        tr:hover { background: #16162a; }
+        .avatar-sm { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; vertical-align: middle; margin-right: 15px; border: 1px solid #f0c040; display: inline-block; }
+        .username { font-weight: bold; font-size: 16px; color: #fff; vertical-align: middle; }
+        .rank { font-size: 20px; font-weight: bold; color: #8a8aaa; width: 50px; text-align: center; }
+        .top-rank { color: #f0c040; }
+        a.back { display: block; text-align: center; color: #f0c040; text-decoration: none; margin-top: 30px; }
+        a.back:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+    <h1>CHECK<span style="color: #f0c040;">ORA</span> &mdash; Leaderboard</h1>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Rank</th>
+                <th>Player</th>
+                <th>Games Played</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for u in users %}
+            <tr>
+                <td class="rank {% if forloop.counter <= 3 %}top-rank{% endif %}">#{{ forloop.counter }}</td>
+                <td>
+                    <img src="{{ u.profile.get_avatar_url }}" alt="Avatar" class="avatar-sm">
+                    <span class="username">{{ u.username }}</span>
+                </td>
+                <td>{{ u.games_played }}</td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="3" style="text-align: center; padding: 40px; color: #5a5a7a;">No games played yet.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <a href="/" class="back">Back to Game</a>
+</body>
+</html>

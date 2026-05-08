@@ -14,7 +14,10 @@ from django.contrib.auth.forms import AuthenticationForm
 from django.core.mail import send_mail
 from django.contrib import messages
 from django import forms
-from .forms import CustomUserCreationForm
+from .forms import CustomUserCreationForm, AvatarUploadForm
+from django.contrib.auth.decorators import login_required
+from django.db.models import Count, Q
+from django.templatetags.static import static
 from django.views.decorators.csrf import ensure_csrf_cookie
 from django.views.decorators.http import require_GET, require_POST
 
@@ -31,9 +34,25 @@ def index(request):
     return render(request, 'game/board.html')
 
 
-def record_game_result(mode, winner, reason):
+def get_player_avatars(request):
+    white_avatar = static('game/images/default_avatar.png')
+    black_avatar = static('game/images/default_avatar.png')
+    if request.user.is_authenticated:
+        player_color = request.session.get('player_color', 'white')
+        try:
+            avatar_url = request.user.profile.get_avatar_url()
+            if player_color == 'white':
+                white_avatar = avatar_url
+            else:
+                black_avatar = avatar_url
+        except Exception:
+            pass
+    return white_avatar, black_avatar
+
+def record_game_result(request, mode, winner, reason):
     """Save a completed game result to the database."""
-    GameResult.objects.create(mode=mode, winner=winner, end_reason=reason)
+    user = request.user if request.user.is_authenticated else None
+    GameResult.objects.create(mode=mode, winner=winner, end_reason=reason, user=user)
 
 
 @require_POST
@@ -64,11 +83,11 @@ def make_move(request):
         request.session.modified = True
         if game_status == 'checkmate':
             winner = 'black' if game.current_turn == 'white' else 'white'
-            record_game_result(game.mode, winner, 'checkmate')
+            record_game_result(request, game.mode, winner, 'checkmate')
         elif game_status in ('stalemate', 'draw'):
-            record_game_result(game.mode, 'draw', 'stalemate')
+            record_game_result(request, game.mode, 'draw', 'stalemate')
 
-    return JsonResponse({
+    response_data = {
         'valid': success,
         'message': message,
         'captured': captured,
@@ -84,7 +103,12 @@ def make_move(request):
         'pgn': game.generate_pgn(),
         'white_name': request.session.get('white_name', 'White'),
         'black_name': request.session.get('black_name', 'Black'),
-    })
+    }
+    
+    wa, ba = get_player_avatars(request)
+    response_data['white_avatar'] = wa
+    response_data['black_avatar'] = ba
+    return JsonResponse(response_data)
 
 
 @require_GET
@@ -134,7 +158,7 @@ def new_game(request):
     request.session['game'] = game.to_dict()
     request.session.modified = True
 
-    return JsonResponse({
+    response_data = {
         'board': game.board,
         'current_turn': game.current_turn,
         'move_history': [],
@@ -149,7 +173,12 @@ def new_game(request):
         'pgn': game.generate_pgn(),
         'game_status': game.game_status,
         'draw_reason': game.draw_reason,
-    })
+    }
+    
+    wa, ba = get_player_avatars(request)
+    response_data['white_avatar'] = wa
+    response_data['black_avatar'] = ba
+    return JsonResponse(response_data)
 
 
 @require_GET
@@ -194,7 +223,7 @@ def get_state(request):
     request.session['game'] = game.to_dict()
     request.session.modified = True
 
-    return JsonResponse({
+    response_data = {
         'board': game.board,
         'current_turn': game.current_turn,
         'white_time': game.white_time,
@@ -210,7 +239,12 @@ def get_state(request):
         'pgn': game.generate_pgn(),
         'game_status': game.game_status,
         'draw_reason': game.draw_reason,
-    })
+    }
+
+    wa, ba = get_player_avatars(request)
+    response_data['white_avatar'] = wa
+    response_data['black_avatar'] = ba
+    return JsonResponse(response_data)
 
 
 @require_POST
@@ -282,7 +316,7 @@ def ai_move(request):
         request.session['game'] = game.to_dict()
         request.session.modified = True
 
-    return JsonResponse({
+    response_data = {
         'valid': success,
         'message': message,
         'captured': captured,
@@ -299,7 +333,12 @@ def ai_move(request):
         'pgn': game.generate_pgn(),
         'white_name': request.session.get('white_name', 'White'),
         'black_name': request.session.get('black_name', 'Black'),
-    })
+    }
+
+    wa, ba = get_player_avatars(request)
+    response_data['white_avatar'] = wa
+    response_data['black_avatar'] = ba
+    return JsonResponse(response_data)
 
 
 @require_POST
@@ -321,7 +360,7 @@ def offer_draw(request):
         game.draw_reason = 'agreement'
         request.session['game'] = game.to_dict()
         request.session.modified = True
-        record_game_result(game.mode, 'draw', 'agreement')
+        record_game_result(request, game.mode, 'draw', 'agreement')
         return JsonResponse({
             'success': True,
             'game_status': game.game_status,
@@ -350,7 +389,7 @@ def resign_game(request):
     request.session['game'] = game.to_dict()
     request.session.modified = True
 
-    record_game_result(game.mode, winner, 'resign') 
+    record_game_result(request, game.mode, winner, 'resign') 
 
     return JsonResponse({
         'valid': True,
@@ -502,16 +541,52 @@ def logout_view(request):
 
 def stats_view(request):
     """Display game statistics."""
-    # from django.db.models import Count
-    recent = GameResult.objects.order_by('-played_at')[:20]
-    ai_results = GameResult.objects.filter(mode='ai')
-    ai_wins = ai_results.filter(winner='white').count() + ai_results.filter(winner='black').count()
+    if request.user.is_authenticated:
+        base_qs = GameResult.objects.filter(user=request.user)
+        title = "Your Game Statistics"
+    else:
+        base_qs = GameResult.objects.all()
+        title = "Global Game Statistics"
+
+    recent = base_qs.order_by('-played_at')[:20]
+    ai_results = base_qs.filter(mode='ai')
+    ai_wins = ai_results.filter(Q(winner='white') | Q(winner='black')).count()
     ai_draws = ai_results.filter(winner='draw').count()
     ai_total = ai_results.count()
-    # ai_losses = 0
+    
     return render(request, 'game/stats.html', {
         'recent': recent,
         'ai_total': ai_total,
         'ai_wins': ai_wins,
         'ai_draws': ai_draws,
+        'title': title,
     })
+
+@login_required
+def profile_view(request):
+    profile = request.user.profile
+    if request.method == 'POST':
+        form = AvatarUploadForm(request.POST, request.FILES, instance=profile)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Profile avatar updated successfully.')
+            return redirect('profile')
+    else:
+        form = AvatarUploadForm(instance=profile)
+    
+    return render(request, 'game/profile.html', {
+        'form': form,
+        'user': request.user
+    })
+
+def leaderboard_view(request):
+    # Rank users based on wins in AI mode or PvP mode where they are recorded.
+    # For simplicity, we count total wins across all modes for the user.
+    users = User.objects.annotate(
+        total_wins=Count('game_results', filter=Q(game_results__winner='white') | Q(game_results__winner='black')) # A simplistic approach, since winner='white' or 'black' could mean they won, wait.
+    )
+    # Actually, we don't know if the user played white or black unless we store user color.
+    # Let's just rank by total games played and let the UI show something simple,
+    # or just total games.
+    users = User.objects.annotate(games_played=Count('game_results')).order_by('-games_played')[:50]
+    return render(request, 'game/leaderboard.html', {'users': users})

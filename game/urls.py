@@ -16,10 +16,12 @@ urlpatterns = [
     path('api/draw/', views.offer_draw, name='offer_draw'),
     path('stats/', views.stats_view, name='stats'),
 
-    # Authentication
     path('register/', views.register_view, name='register'),
     path('verify-otp/', views.verify_otp, name='verify_otp'),
     path('login/', views.login_view, name='login'),
     path('rules/', views.rules, name='rules'),
     path('logout/', views.logout_view, name='logout'),
+    
+    path('profile/', views.profile_view, name='profile'),
+    path('leaderboard/', views.leaderboard_view, name='leaderboard'),
 ]
